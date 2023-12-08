@@ -6,6 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+from datetime import datetime, timedelta
 
 def load_credentials():
     with open("EDA_CustomerLoans/credentials.yaml", "r") as file:
@@ -43,6 +44,18 @@ connector = RDSDatabaseConnector()
 #connector.save_to_csv(data, "EDA_CustomerLoans", "loan_payments_data.csv")
 
 loaded_data = connector.load_from_csv("EDA_CustomerLoans", "loan_payments_data.csv")
+
+# Instantiate the Analysis class with your DataFrame
+analysis_instance = Analysis(loaded_data)
+
+# Calculate the recovery percentage 
+recovery_percentage = analysis_instance.calculate_recovery_percentage()
+print(f"Percentage of loans recovered against total funding: {recovery_percentage:.2f}%")
+
+# Calculate the percentage of payments due next 6 months + total recovered against total funded
+forcasted_percentage_recovered_after_6_months = analysis_instance.calculate_payments_and_recovery_percentage()
+print(f"Percentage of Payments Due Next 6 Months + Total Recovered Against Total Funded: {forcasted_percentage_recovered_after_6_months:.2f}%")
+
 
 pd.set_option('display.max_columns', None)
 
@@ -286,7 +299,7 @@ class DataFrameTransform:
         # Return the dataframe without outliers and the indices of removed outliers
         return dataframe, removed_outliers_indices
     
-    def remove_highly_correlated_columns(self, dataframe, correlation_threshold=0.8):
+    def remove_highly_correlated_columns(self, dataframe, correlation_threshold=0.8, exclude=[]):
         # Exclude non-numeric columns
         numeric_columns = dataframe.select_dtypes(include=['float64', 'int64']).columns
         subset_dataframe = dataframe[numeric_columns]
@@ -302,11 +315,13 @@ class DataFrameTransform:
                     colname = correlation_matrix.columns[i]
                     highly_correlated_columns.add(colname)
 
+        # Exclude specified columns from being dropped
+        highly_correlated_columns = [col for col in highly_correlated_columns if col not in exclude]
+
         # Remove highly correlated columns
         dataframe_no_high_correlation = dataframe.drop(columns=highly_correlated_columns)
+        return dataframe_no_high_correlation    
 
-        return dataframe_no_high_correlation
-    
 #DROP, IMPUTE, Transform-----------------------------------------------------------------------------------------------------------------------------------------------
 
 #drop columns
@@ -352,9 +367,6 @@ data_info = DataFrameInfo(cleaned_data)
 IQR_skew_values_fixed = data_info.calculate_IQR_skew_values_fixed(skew_values_fixed)
 #print("Interquartile Range (IQR) for skew_values_fixed:", IQR_skew_values_fixed)
 
-# Define the column names for which you want to remove outliers
-columns_with_outliers = ['column1', 'column2', 'column3']  # Replace with your actual column names
-
 # Call the remove_outliers_auto method
 cleaned_data_without_outliers, removed_outliers_indices = transformer.remove_outliers_auto(cleaned_data)
 
@@ -364,9 +376,80 @@ cleaned_data_without_outliers, removed_outliers_indices = transformer.remove_out
 #    print(cleaned_data.loc[indices])
 
 # call the remove highly correlated columns method
-dataframe_no_high_correlation = transformer.remove_highly_correlated_columns(dataframe_fixed, correlation_threshold=0.8)
+exclude = ['funded_amount', 'funded_amount_inv', 'instalment']
+dataframe_no_high_correlation = transformer.remove_highly_correlated_columns(dataframe_fixed, correlation_threshold=0.8, exclude=exclude)
 
+#print(dataframe_no_high_correlation.columns)
 #----------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+class Analysis:
+    def __init__(self, loan_data):
+        self.loan_data = loan_data
+
+    def calculate_recovery_percentage(self):
+        total_funded = self.loan_data['funded_amount'].sum()
+        total_recovered = self.loan_data['total_payment'].sum()
+        print(total_funded)
+        print(total_recovered)
+        recovery_percentage = (total_recovered / total_funded) * 100
+
+        return recovery_percentage
+    
+    def calculate_payments_and_recovery_percentage(self):
+        payments_due = []
+        total_funded = self.loan_data['funded_amount'].sum()
+        total_recovered = self.loan_data['total_payment'].sum()
+
+        for _, row in self.loan_data.iterrows():
+            # Convert 'issue_date', 'last_payment_date', and 'term' to datetime
+            issue_date = pd.to_datetime(row['issue_date'])
+            last_payment_date = pd.to_datetime(row['last_payment_date'])
+            
+            # Handle different data types for 'term' column
+            term = row['term']
+            if pd.notna(term):
+                if isinstance(term, (int, float)):
+                    term_in_months = int(term)
+                else:
+                    term_in_months = int(''.join(filter(str.isdigit, str(term))))
+            else:
+                # Set a default term value (you can adjust this as needed)
+                term_in_months = 36
+
+            # Calculate the projected end date based on the issue date and term
+            projected_end_date = issue_date + pd.DateOffset(months=term_in_months)
+
+            # Calculate the number of months between 'last_payment_date' and the projected end date
+            months_to_project = min(((projected_end_date - last_payment_date).days // 30), 6)
+
+            # Calculate payments due for the next 'months_to_project' months
+            payment_due = row['instalment'] * months_to_project
+            payments_due.append(payment_due)
+
+        # Sum the payments due for all rows
+        total_payments_due = np.sum(payments_due)
+
+        # Calculate the percentage of payments due next 6 months and total recovered against total funded
+        forcasted_percentage_recovered_after_6_months = ((total_payments_due + total_recovered) / total_funded) * 100
+
+        return forcasted_percentage_recovered_after_6_months
+
+# Instantiate the Analysis class with your DataFrame
+analysis_instance = Analysis(loaded_data)
+
+# Calculate the recovery percentage 
+recovery_percentage = analysis_instance.calculate_recovery_percentage()
+print(f"Percentage of loans recovered against total funding: {recovery_percentage:.2f}%")
+
+# Calculate the percentage of payments due next 6 months + total recovered against total funded
+forcasted_percentage_recovered_after_6_months = analysis_instance.calculate_payments_and_recovery_percentage()
+print(f"Percentage of Payments Due Next 6 Months + Total Recovered Against Total Funded: {forcasted_percentage_recovered_after_6_months:.2f}%")
+
+
+
+
+
+
 
 class Plotter:
     def visualize_null_removal(self, original_data, cleaned_data):
@@ -473,6 +556,7 @@ class Plotter:
         plt.title('Correlation Matrix')
         plt.show()
 
+
 #Printing the graphs
 
 #plotter = Plotter()
@@ -484,9 +568,10 @@ class Plotter:
 #plotter = Plotter()
 #plotter.visualize_reduction_in_skewness(cleaned_data, dataframe_fixed, skewed_columns)
 
-plotter = Plotter()
-plotter.visualize_correlation_matrix(dataframe_fixed)
+#plotter = Plotter()
+#plotter.visualize_correlation_matrix(dataframe_fixed)
 
-plotter = Plotter()
-plotter.visualize_correlation_matrix(dataframe_no_high_correlation)
+#plotter = Plotter()
+#plotter.visualize_correlation_matrix(dataframe_no_high_correlation)
 
+#print(dataframe_no_high_correlation.columns)
