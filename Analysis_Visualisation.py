@@ -224,29 +224,26 @@ class IndicatorsOfLoss:
             print(f"\n{column}:\n{column_counts}")
 
 
-
-
-# Instantiate the Analysis class with your DataFrame
+#Instantiate the Analysis class
 analysis_instance = Analysis(loaded_data)
-
-   
-""" # Calculate the recovery percentage 
+  
+#Calculate the recovery percentage 
 recovery_percentage = analysis_instance.calculate_recovery_percentage()
 print(f"Percentage of loans recovered against total funding: {recovery_percentage:.2f}")
 
-# Calculate the percentage of payments due next 6 months + total recovered against total funded
+#Calculate the percentage of payments due next 6 months + total recovered against total funded
 forcasted_percentage_recovered_after_6_months = analysis_instance.calculate_payments_and_recovery_percentage()
 print(f"Percentage of Payments Due Next 6 Months + Total Recovered Against Total Funded: {forcasted_percentage_recovered_after_6_months:.2f}")
 
-# Calculate the loss percentage and total amount paid towards charged-off loans
+#Calculate the loss percentage and total amount paid towards charged-off loans
 charged_off_percentage, total_amount_paid, loss_in_revenue = analysis_instance.calculate_loss_percentage()
 
-# Print the results
+#Print the results
 print(f"Percentage of Charged-Off Loans: {charged_off_percentage:.2f}%")
 print(f"Total Amount Paid Towards Charged-Off Loans: ${total_amount_paid:.2f}")
 print(f"Loss in revenue: ${loss_in_revenue:.2f}")
 
-# Visualize the cumulative projected loss over the remaining term of charged-off loans
+#Visualize the cumulative projected loss over the remaining term of charged-off loans
 analysis_instance.visualize_loss_projection()
 
 number_customers_risk, percentage_risk, total_risk_lost, total_charged_off_lost, total_loss, percentage_of_total_loan = analysis_instance.possible_loss()
@@ -255,7 +252,7 @@ print(f"Number of customers at risk of moving to charged off: {number_customers_
 print(f"Percentage of customers at risk: {percentage_risk:.2f}%")
 print(f"Total lost if they converted to charged off: ${total_risk_lost:.2f}")
 print(f"Total lost for charged-off loans: ${total_charged_off_lost:.2f}")
-print(f"Total loss (risk + charged-off): ${total_loss:.2f}") """
+print(f"Total loss (risk + charged-off): ${total_loss:.2f}")
 
 ## Instantiate the IndicatorsOfLoss class with your DataFrame
 indicators_instance = IndicatorsOfLoss(loaded_data)
@@ -268,16 +265,16 @@ charged_off_customers, charged_off_loans = indicators_instance.charged_off_custo
 # Call the method to get specified columns for customers at risk
 customers_risk_subset, customers_risk = indicators_instance.customers_at_risk(columns_to_print)
 
-""" # Print the resulting DataFrames
+# Print the resulting DataFrames
 print("Charged Off Customers:")
 print(charged_off_customers)
 
 print("\nCustomers at Risk:")
-print(customers_risk_subset) """
+print(customers_risk_subset)
 
-""" # Print the count of each input for each column in the DataFrames
+# Print the count of each input for each column in the DataFrames
 IndicatorsOfLoss.print_count_for_columns(charged_off_customers, "Charged Off Customers")
-IndicatorsOfLoss.print_count_for_columns(customers_risk_subset, "Customers at Risk") """
+IndicatorsOfLoss.print_count_for_columns(customers_risk_subset, "Customers at Risk")
 
 
 #INDICATORS OF LOSS SUMMARY
@@ -291,18 +288,18 @@ If we then take a look at the at risk group we can predict which loans are at hi
 - purpose of debt consilidation AND
 - have rent or mortgage status """
 
-# Filter rows in customers_risk_subset based on conditions
-""" filtered_rows = customers_risk_subset[
+#Filter rows in customers_risk_subset based on conditions
+filtered_rows = customers_risk_subset[
     (customers_risk_subset['grade'].isin(['C', 'B', 'D'])) &
     (customers_risk_subset['purpose'] == 'debt_consolidation') &
     (customers_risk_subset['home_ownership'].isin(['RENT', 'MORTGAGE']))
-] """
+]
 
-# Count the number of rows in the filtered subset
-#count_filtered_rows = len(filtered_rows)
+#Count the number of rows in the filtered subset
+count_filtered_rows = len(filtered_rows)
 
-# Print the result
-#print(f"Number of customers at risk with grade C, B, or D, purpose of debt consolidation, and rent or mortgage ownership: {count_filtered_rows}")
+#Print the result
+print(f"Number of customers at risk with grade C, B, or D, purpose of debt consolidation, and rent or mortgage ownership: {count_filtered_rows}")
 
 
 #total = 294 out of 686 (43%) of the at risk group are at high risk of being converted to chargeed off
